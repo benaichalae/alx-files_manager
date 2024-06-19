@@ -67,9 +67,9 @@ userQueue.process(async (job) => {
     const mailContent = [
       '<div>',
       '<h3>Hello ${user.name},</h3>',
-      '<p>Welcome to <a href="https://example.com/my-awesome-app">My Awesome App</a>',
+      '<p>Welcome to <a href="https://github.com/benaichalae/alx-files_manager">My Awesome App</a>',
       'an innovative application designed to simplify your workflow, built with love by',
-      '<a href="https://example.com">Your Name</a>', 
+      '<a href="https://github.com/benaichalae">Ben Aicha Alae</a>', 
       'We hope you enjoy using it!</p>',
       '</div>',
     ].join('');
