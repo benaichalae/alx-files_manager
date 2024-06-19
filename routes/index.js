@@ -1,44 +1,29 @@
-// eslint-disable-next-line no-unused-vars
-import { Express } from 'express';
+import express from 'express';
 import AppController from '../controllers/AppController';
-import AuthController from '../controllers/AuthController';
 import UsersController from '../controllers/UsersController';
+import AuthController from '../controllers/AuthController';
 import FilesController from '../controllers/FilesController';
-import { basicAuthenticate, xTokenAuthenticate } from '../middlewares/auth';
-import { APIError, errorHandler } from '../middlewares/error';
 
-/**
- * Sets up the route handlers for the Express application.
- * @param {Express} app - The Express application instance.
- */
-const configureRoutes = (app) => {
-  // Application status endpoints
-  app.get('/status', AppController.getStatus);
-  app.get('/stats', AppController.getStats);
+const router = express.Router();
 
-  // Authentication endpoints
-  app.get('/connect', basicAuthenticate, AuthController.getConnect);
-  app.get('/disconnect', xTokenAuthenticate, AuthController.getDisconnect);
+// App Controller
+router.get('/status', AppController.getStatus);
+router.get('/stats', AppController.getStats);
 
-  // User management endpoints
-  app.post('/users', UsersController.postNew);
-  app.get('/users/me', xTokenAuthenticate, UsersController.getMe);
+// User Controller
+router.post('/users', UsersController.postNew);
+router.get('/users/me', UsersController.getMe);
 
-  // File management endpoints
-  app.post('/files', xTokenAuthenticate, FilesController.postUpload);
-  app.get('/files/:id', xTokenAuthenticate, FilesController.getShow);
-  app.get('/files', xTokenAuthenticate, FilesController.getIndex);
-  app.put('/files/:id/publish', xTokenAuthenticate, FilesController.putPublish);
-  app.put('/files/:id/unpublish', xTokenAuthenticate, FilesController.putUnpublish);
-  app.get('/files/:id/data', FilesController.getFile);
+// Auth Controller
+router.get('/connect', AuthController.getConnect);
+router.get('/disconnect', AuthController.getDisconnect);
 
-  // Handle unknown routes
-  app.all('*', (req, res, next) => {
-    errorHandler(new APIError(404, `Cannot ${req.method} ${req.url}`), req, res, next);
-  });
-  
-  // General error handling middleware
-  app.use(errorHandler);
-};
+// Files Controller
+router.post('/files', FilesController.postUpload);
+router.get('/files/:id', FilesController.getShow);
+router.get('/files', FilesController.getIndex);
+router.put('/files/:id/publish', FilesController.putPublish);
+router.put('/files/:id/unpublish', FilesController.putUnpublish);
+router.get('/files/:id/data', FilesController.getFile);
 
-export default configureRoutes;
+export default router;

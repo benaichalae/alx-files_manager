@@ -1,66 +1,57 @@
-import mongodb from 'mongodb';
-// eslint-disable-next-line no-unused-vars
-import Collection from 'mongodb/lib/collection';
-import loadEnvironment from './env_loader';
+import { MongoClient } from 'mongodb';
 
-/**
- * Handles MongoDB operations.
- */
-class MongoConnector {
-  /**
-   * Initializes a new MongoConnector instance.
-   */
+const DB_HOST = process.env.DB_HOST || 'localhost';
+const DB_PORT = process.env.DB_PORT || 27017;
+const DB_DATABASE = process.env.DB_DATABASE || 'files_manager';
+const url = `mongodb://${DB_HOST}:${DB_PORT}`;
+
+class DBClient {
   constructor() {
-    loadEnvironment();
-    const host = process.env.DB_HOST || 'localhost';
-    const port = process.env.DB_PORT || 27017;
-    const databaseName = process.env.DB_DATABASE || 'files_manager';
-    const dbURL = `mongodb://${host}:${port}/${databaseName}`;
-
-    this.client = new mongodb.MongoClient(dbURL, { useUnifiedTopology: true });
-    this.client.connect();
+    this.client = new MongoClient(url, { useUnifiedTopology: true });
+    this.db = null;
+    this.usersCollection = null;
+    this.filesCollection = null;
+    
+    this.connect();
   }
 
-  /**
-   * Verifies if the connection to MongoDB is active.
-   * @returns {boolean}
-   */
-  isConnected() {
-    return this.client.isConnected();
+  async connect() {
+    try {
+      await this.client.connect();
+      this.db = this.client.db(DB_DATABASE);
+      this.usersCollection = this.db.collection('users');
+      this.filesCollection = this.db.collection('files');
+      console.log('Connected successfully to server');
+    } catch (err) {
+      console.error('Error connecting to database:', err.message);
+    }
   }
 
-  /**
-   * Counts the total number of users.
-   * @returns {Promise<Number>}
-   */
-  async countUsers() {
-    return this.client.db().collection('users').countDocuments();
+  isAlive() {
+    return Boolean(this.db);
   }
 
-  /**
-   * Counts the total number of files.
-   * @returns {Promise<Number>}
-   */
-  async countFiles() {
-    return this.client.db().collection('files').countDocuments();
+  async nbUsers() {
+    try {
+      const numberOfUsers = await this.usersCollection.countDocuments();
+      return numberOfUsers;
+    } catch (err) {
+      console.error('Error counting users:', err.message);
+      return 0;
+    }
   }
 
-  /**
-   * Provides access to the `users` collection.
-   * @returns {Promise<Collection>}
-   */
-  async getUsersCollection() {
-    return this.client.db().collection('users');
-  }
-
-  /**
-   * Provides access to the `files` collection.
-   * @returns {Promise<Collection>}
-   */
-  async getFilesCollection() {
-    return this.client.db().collection('files');
+  async nbFiles() {
+    try {
+      const numberOfFiles = await this.filesCollection.countDocuments();
+      return numberOfFiles;
+    } catch (err) {
+      console.error('Error counting files:', err.message);
+      return 0;
+    }
   }
 }
 
-export const mongoConnector = new MongoConnector();
-export default mongoConnector;
+const dbClient = new DBClient();
+
+export default dbClient;

@@ -1,13 +1,10 @@
-/* eslint-disable import/no-named-as-default */
-import { writeFile } from 'fs';
-import { promisify } from 'util';
-import Queue from 'bull/lib/queue';
+import { writeFile } from 'fs/promises';
+import { Queue } from 'bull';
 import imgThumbnail from 'image-thumbnail';
-import mongoDBCore from 'mongodb/lib/core';
+import { ObjectId } from 'mongodb';
 import dbClient from './utils/db';
 import Mailer from './utils/mailer';
 
-const writeFileAsync = promisify(writeFile);
 const fileQueue = new Queue('thumbnail generation');
 const userQueue = new Queue('email sending');
 
@@ -20,11 +17,11 @@ const userQueue = new Queue('email sending');
 const createThumbnail = async (filePath, size) => {
   const buffer = await imgThumbnail(filePath, { width: size });
   console.log(`Creating thumbnail for: ${filePath} with width: ${size}`);
-  return writeFileAsync(`${filePath}_${size}`, buffer);
+  await writeFile(`${filePath}_${size}`, buffer);
 };
 
 // Process tasks in the file queue
-fileQueue.process(async (job, done) => {
+fileQueue.process(async (job) => {
   const { fileId, userId } = job.data;
 
   if (!fileId) {
@@ -36,32 +33,28 @@ fileQueue.process(async (job, done) => {
 
   console.log('Processing job:', job.data.name || '');
 
-  const file = await (await dbClient.filesCollection())
-    .findOne({
-      _id: new mongoDBCore.BSON.ObjectId(fileId),
-      userId: new mongoDBCore.BSON.ObjectId(userId),
-    });
+  const file = await dbClient.filesCollection.findOne({
+    _id: ObjectId(fileId),
+    userId: ObjectId(userId),
+  });
 
   if (!file) {
     throw new Error('File not found');
   }
 
   const sizes = [500, 250, 100];
-  Promise.all(sizes.map(size => createThumbnail(file.localPath, size)))
-    .then(() => done())
-    .catch(err => done(err));
+  await Promise.all(sizes.map(size => createThumbnail(file.localPath, size)));
 });
 
 // Process tasks in the user queue
-userQueue.process(async (job, done) => {
+userQueue.process(async (job) => {
   const { userId } = job.data;
 
   if (!userId) {
     throw new Error('userId is required');
   }
 
-  const user = await (await dbClient.usersCollection())
-    .findOne({ _id: new mongoDBCore.BSON.ObjectId(userId) });
+  const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userId) });
 
   if (!user) {
     throw new Error('User not found');
@@ -70,19 +63,19 @@ userQueue.process(async (job, done) => {
   console.log(`Sending welcome email to ${user.email}`);
 
   try {
-    const subject = 'Welcome to ALX-Files_Manager';
-    const content = `
-      <div>
-        <h3>Hello ${user.name},</h3>
-        <p>Welcome to <a href="https://github.com/B3zaleel/alx-files_manager">ALX-Files_Manager</a>, 
-        a simple file management API built with Node.js by 
-        <a href="https://github.com/B3zaleel">Bezaleel Olakunori</a>. 
-        We hope it meets your needs.</p>
-      </div>`;
+    const mailSubject = 'Welcome to ALX-Files_Manager by Ben Aicha Alae';
+    const mailContent = [
+      '<div>',
+      '<h3>Hello ${user.name},</h3>',
+      '<p>Welcome to <a href="https://example.com/my-awesome-app">My Awesome App</a>',
+      'an innovative application designed to simplify your workflow, built with love by',
+      '<a href="https://example.com">Your Name</a>', 
+      'We hope you enjoy using it!</p>',
+      '</div>',
+    ].join('');
     
-    await Mailer.sendMail(Mailer.buildMessage(user.email, subject, content));
-    done();
+    await Mailer.sendMail(Mailer.buildMessage(user.email, mailSubject, mailContent));
   } catch (err) {
-    done(err);
+    throw new Error('Error sending email');
   }
 });
